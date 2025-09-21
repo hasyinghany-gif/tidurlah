@@ -1,0 +1,417 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Penilaian Mandiri Maturitas SPIP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        
+        <!-- Header -->
+        <header class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-700">Penilaian Mandiri Maturitas Penyelenggaraan SPIP</h1>
+            <p class="text-gray-500 mt-1">Periode Penilaian: 01 Juli 2024 s.d. 30 Juni 2025</p>
+            <p class="text-sm text-gray-500">KK 3.1 - Penilaian Struktur dan Proses Efektivitas dan Efisiensi</p>
+        </header>
+
+        <!-- Loading Indicator -->
+        <div id="loader" class="text-center p-8">
+            <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-2 text-gray-600">Menghubungkan ke database...</p>
+        </div>
+
+        <!-- Main Content (hidden until loaded) -->
+        <main id="main-content" class="hidden">
+            <!-- Satker Selector -->
+            <div class="bg-white shadow-md rounded-lg p-4 mb-6 flex flex-col md:flex-row items-center gap-4">
+                <label for="satker-select" class="font-semibold text-gray-700">Pilih Satuan Kerja (Satker):</label>
+                <select id="satker-select" class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <!-- Options will be populated by JS -->
+                </select>
+            </div>
+
+            <!-- Assessment Table -->
+            <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Kode</th>
+                            <th scope="col" class="px-6 py-3">Uraian Parameter</th>
+                            <th scope="col" class="px-6 py-3 text-center">Status</th>
+                            <th scope="col" class="px-6 py-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assessment-table-body">
+                        <!-- Rows will be populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- Assessment Modal (hidden by default) -->
+        <div id="assessment-modal" class="modal-backdrop hidden">
+            <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6 modal-content">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Formulir Penilaian</h2>
+                        <p id="modal-parameter-title" class="text-sm text-gray-600 mt-1"></p>
+                    </div>
+                    <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <form id="assessment-form">
+                    <input type="hidden" id="current-parameter-code">
+
+                    <!-- Kriteria Section -->
+                    <div class="mb-6">
+                        <h3 class="font-semibold text-lg text-gray-700 mb-2">Kriteria Penilaian</h3>
+                        <div id="modal-criteria-container" class="space-y-2 text-sm max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-md border">
+                            <!-- Criteria details will be populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Form Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="metode-penilaian" class="block text-sm font-medium text-gray-700 mb-1">Metode Penilaian</label>
+                            <select id="metode-penilaian" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option>Wawancara</option>
+                                <option>Analisis Dokumen</option>
+                                <option>Observasi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="simpulan" class="block text-sm font-medium text-gray-700 mb-1">Simpulan Hasil Pengujian</label>
+                            <select id="simpulan" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option>A</option>
+                                <option>B</option>
+                                <option>C</option>
+                                <option>D</option>
+                                <option>E</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="hasil-pengujian" class="block text-sm font-medium text-gray-700 mb-1">Uraian Kondisi Detail Hasil Pengujian</label>
+                        <textarea id="hasil-pengujian" rows="4" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Jelaskan kondisi detail hasil pengujian..."></textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label for="uraian-aoi" class="block text-sm font-medium text-gray-700 mb-1">Uraian AoI (Area of Improvement)</label>
+                        <textarea id="uraian-aoi" rows="3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Jelaskan area yang perlu perbaikan..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-8 flex justify-end gap-3">
+                        <button type="button" id="cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition font-semibold">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-semibold">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        const firebaseConfig = {
+        apiKey: "AIzaSyXXXXX-XXXXXXXXXXXXX",
+        authDomain: "project-id.firebaseapp.com",
+        projectId: "project-id",
+        storageBucket: "project-id.appspot.com",
+        messagingSenderId: "1234567890",
+        appId: "1:1234567890:web:abcdef123456"
+    };
+
+    const appId = "spip-app"; // isi manual jika belum dari backend
+    const initialAuthToken = null;
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } 
+        from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { getFirestore, doc, onSnapshot, setDoc, updateDoc } 
+        from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+    // inisialisasi Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    
+    console.log("Firebase initialized successfully!");
+</script>
+
+        // --- DATA TEMPLATE (Based on your workbook) ---
+        const SATKER_LIST = ['Inspektorat', 'Pusdatin', 'Sestama', 'Biro Perencanaan', 'Biro SDM & Umum', 'Puslat', 'Biro Hukum & Humas'];
+        
+        const ASSESSMENT_STRUCTURE = [
+            {
+                kode: "1.1.1",
+                uraian_subunsur: "Penegakan Integritas dan Nilai Etika",
+                no: "1",
+                uraian_parameter: "Pimpinan dan pegawai memahami dan menerapkan aturan perilaku",
+                kode_parameter: "T1.1.1.a",
+                grades: [
+                    { grade: 'A', kriteria: 'Seluruh pimpinan dan pegawai telah memahami dan menerapkan aturan perilaku yang selaras dengan tujuan organisasi.' },
+                    { grade: 'B', kriteria: 'Sebagian besar pimpinan dan pegawai telah memahami dan menerapkan aturan perilaku.' },
+                    { grade: 'C', kriteria: 'Aturan perilaku telah ditetapkan, namun pemahaman dan penerapan masih terbatas.' },
+                    { grade: 'D', kriteria: 'Aturan perilaku telah ada namun belum disosialisasikan secara efektif.' },
+                    { grade: 'E', kriteria: 'Belum terdapat aturan perilaku yang formal dan terstruktur.' },
+                ]
+            },
+            {
+                kode: "1.1.1",
+                uraian_subunsur: "Penegakan Integritas dan Nilai Etika",
+                no: "2",
+                uraian_parameter: "Mekanisme pemantauan dan evaluasi atas penerapan aturan perilaku telah berjalan efektif.",
+                kode_parameter: "T1.1.1.b",
+                grades: [
+                    { grade: 'A', kriteria: 'Mekanisme pemantauan dan evaluasi berjalan secara konsisten, efektif, dan hasilnya ditindaklanjuti untuk perbaikan.' },
+                    { grade: 'B', kriteria: 'Mekanisme pemantauan dan evaluasi ada dan berjalan, namun tindak lanjutnya belum optimal.' },
+                    { grade: 'C', kriteria: 'Mekanisme pemantauan ada, namun belum dievaluasi efektivitasnya.' },
+                    { grade: 'D', kriteria: 'Pemantauan hanya dilakukan secara ad-hoc atau berdasarkan laporan insidental.' },
+                    { grade: 'E', kriteria: 'Belum ada mekanisme formal untuk memantau penerapan aturan perilaku.' },
+                ]
+            },
+            {
+                kode: "1.2.1",
+                uraian_subunsur: "Komitmen terhadap Kompetensi",
+                no: "1",
+                uraian_parameter: "Kebutuhan kompetensi untuk setiap jabatan telah diidentifikasi dan dipetakan.",
+                kode_parameter: "T1.2.1.a",
+                grades: [
+                    { grade: 'A', kriteria: 'Kebutuhan kompetensi telah dipetakan secara komprehensif, dievaluasi, dan dimutakhirkan secara berkala.' },
+                    { grade: 'B', kriteria: 'Kebutuhan kompetensi telah diidentifikasi dan dipetakan untuk sebagian besar jabatan.' },
+                    { grade: 'C', kriteria: 'Identifikasi kebutuhan kompetensi telah dilakukan namun belum terstruktur dan terdokumentasi dengan baik.' },
+                    { grade: 'D', kriteria: 'Identifikasi kompetensi masih bersifat umum dan belum spesifik per jabatan.' },
+                    { grade: 'E', kriteria: 'Belum ada proses identifikasi kebutuhan kompetensi yang formal.' },
+                ]
+            },
+        ];
+
+        // --- APPLICATION LOGIC ---
+        const App = {
+            db: null,
+            auth: null,
+            userId: null,
+            currentSatker: SATKER_LIST[0],
+            assessmentData: {},
+            unsubscribe: null,
+
+            init() {
+                // Initialize Firebase
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    this.db = getFirestore(app);
+                    this.auth = getAuth(app);
+                    this.handleAuthentication();
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                    document.getElementById('loader').innerText = "Gagal menginisialisasi aplikasi. Cek konsol untuk detail.";
+                }
+
+                this.populateSatkerSelect();
+                this.setupEventListeners();
+            },
+
+            async handleAuthentication() {
+                onAuthStateChanged(this.auth, async (user) => {
+                    if (user) {
+                        this.userId = user.uid;
+                        console.log("User authenticated:", this.userId);
+                        this.loadInitialData();
+                    } else {
+                        // No user is signed in.
+                        console.log("No user signed in, attempting to sign in...");
+                         try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(this.auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(this.auth);
+                            }
+                        } catch (error) {
+                            console.error("Authentication failed:", error);
+                            document.getElementById('loader').innerText = "Gagal melakukan otentikasi.";
+                        }
+                    }
+                });
+            },
+
+            loadInitialData() {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('main-content').classList.remove('hidden');
+                this.renderTable();
+                this.listenForDataChanges();
+            },
+            
+            populateSatkerSelect() {
+                const select = document.getElementById('satker-select');
+                SATKER_LIST.forEach(satker => {
+                    const option = document.createElement('option');
+                    option.value = satker;
+                    option.textContent = satker;
+                    select.appendChild(option);
+                });
+            },
+
+            renderTable() {
+                const tableBody = document.getElementById('assessment-table-body');
+                tableBody.innerHTML = ''; // Clear existing rows
+                ASSESSMENT_STRUCTURE.forEach(param => {
+                    const paramData = this.assessmentData[param.kode_parameter];
+                    const isCompleted = paramData && paramData.simpulan;
+
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${param.kode_parameter}</td>
+                        <td class="px-6 py-4">${param.uraian_parameter}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${isCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                ${isCompleted ? 'Selesai' : 'Belum Diisi'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <button data-param-code="${param.kode_parameter}" class="open-modal-btn font-medium text-blue-600 hover:underline">
+                                ${isCompleted ? 'Edit' : 'Isi Penilaian'}
+                            </button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            },
+            
+            listenForDataChanges() {
+                if (this.unsubscribe) {
+                    this.unsubscribe(); // Stop listening to old document
+                }
+                const docRef = doc(this.db, `artifacts/${appId}/public/data/assessments`, this.currentSatker);
+                this.unsubscribe = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        this.assessmentData = docSnap.data().parameters || {};
+                        console.log(`Data received for ${this.currentSatker}:`, this.assessmentData);
+                    } else {
+                        console.log(`No data for ${this.currentSatker}, starting fresh.`);
+                        this.assessmentData = {};
+                    }
+                    this.renderTable();
+                }, (error) => {
+                    console.error("Error listening to document:", error);
+                });
+            },
+
+            setupEventListeners() {
+                document.getElementById('satker-select').addEventListener('change', (e) => {
+                    this.currentSatker = e.target.value;
+                    this.listenForDataChanges();
+                });
+
+                document.getElementById('assessment-table-body').addEventListener('click', (e) => {
+                    if (e.target.classList.contains('open-modal-btn')) {
+                        const paramCode = e.target.dataset.paramCode;
+                        this.openModal(paramCode);
+                    }
+                });
+                
+                document.getElementById('close-modal-btn').addEventListener('click', () => this.closeModal());
+                document.getElementById('cancel-btn').addEventListener('click', () => this.closeModal());
+                document.getElementById('assessment-modal').addEventListener('click', (e) => {
+                     if (e.target.id === 'assessment-modal') {
+                        this.closeModal();
+                    }
+                });
+                
+                document.getElementById('assessment-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveAssessment();
+                });
+            },
+
+            openModal(paramCode) {
+                const param = ASSESSMENT_STRUCTURE.find(p => p.kode_parameter === paramCode);
+                if (!param) return;
+                
+                document.getElementById('current-parameter-code').value = paramCode;
+                document.getElementById('modal-parameter-title').textContent = `${param.kode_parameter} - ${param.uraian_parameter}`;
+                
+                const criteriaContainer = document.getElementById('modal-criteria-container');
+                criteriaContainer.innerHTML = param.grades.map(g => 
+                    `<p><strong class="font-semibold text-gray-700">Grade ${g.grade}:</strong> ${g.kriteria}</p>`
+                ).join('');
+
+                // Populate form with existing data if available
+                const existingData = this.assessmentData[paramCode] || {};
+                document.getElementById('metode-penilaian').value = existingData.metode_penilaian || 'Wawancara';
+                document.getElementById('simpulan').value = existingData.simpulan || 'A';
+                document.getElementById('hasil-pengujian').value = existingData.hasil_pengujian || '';
+                document.getElementById('uraian-aoi').value = existingData.uraian_aoi || '';
+                
+                document.getElementById('assessment-modal').classList.remove('hidden');
+            },
+
+            closeModal() {
+                document.getElementById('assessment-modal').classList.add('hidden');
+            },
+
+            async saveAssessment() {
+                const paramCode = document.getElementById('current-parameter-code').value;
+                const dataToSave = {
+                    metode_penilaian: document.getElementById('metode-penilaian').value,
+                    simpulan: document.getElementById('simpulan').value,
+                    hasil_pengujian: document.getElementById('hasil-pengujian').value,
+                    uraian_aoi: document.getElementById('uraian-aoi').value,
+                };
+
+                const docRef = doc(this.db, `artifacts/${appId}/public/data/assessments`, this.currentSatker);
+                
+                try {
+                    // Using setDoc with merge to create or update the document without overwriting the whole thing
+                    // This creates the nested 'parameters' map and the specific parameter entry
+                    await setDoc(docRef, {
+                        parameters: {
+                            [paramCode]: dataToSave
+                        }
+                    }, { merge: true });
+
+                    console.log("Data saved successfully!");
+                    this.closeModal();
+                } catch (error) {
+                    console.error("Error saving document: ", error);
+                    alert("Gagal menyimpan data. Silakan coba lagi.");
+                }
+            }
+        };
+
+        // Start the application
+        App.init();
+
+    </script>
+</body>
+</html>
